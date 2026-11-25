@@ -1,32 +1,34 @@
 #!/usr/bin/env python3
-"""Copy the rendered front page into the grader's output directory.
+"""Place the pre-rendered front page at /output/entry.png.
 
-The image is drawn at build time and stored in this repository as
-front.jpg. This program only moves those exact bytes to
-<output>/entry.png, so both graded runs produce identical output.
+The page is drawn at build time by render.py and shipped beside this
+file as front.jpg. At grading time this program only copies bytes, so
+both runs produce identical output. Standard library only, no network.
+Outside the grader, MAKEFUN_OUTPUT_DIR stands in for /output.
 """
-
+import hashlib
 import os
 import shutil
 import sys
 
-IMAGE = "front.jpg"
-MAX_BYTES = 1048576
+MAX_BYTES = 1024 * 1024
 
 
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
-    source = os.path.join(here, IMAGE)
-    outdir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
-    target = os.path.join(outdir, "entry.png")
-    size = os.path.getsize(source)
+    src = os.path.join(here, "front.jpg")
+    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
+    os.makedirs(out_dir, exist_ok=True)
+    dst = os.path.join(out_dir, "entry.png")
+    size = os.path.getsize(src)
     if size > MAX_BYTES:
-        sys.exit(f"{IMAGE} is {size} bytes, over the 1 MiB limit")
-    os.makedirs(outdir, exist_ok=True)
-    shutil.copyfile(source, target)
-    if os.path.getsize(target) != size:
-        sys.exit("copy of front.jpg did not match the source size")
+        print(f"front.jpg is {size} bytes, over the 1 MiB limit", file=sys.stderr)
+        return 1
+    shutil.copyfile(src, dst)
+    digest = hashlib.sha256(open(dst, "rb").read()).hexdigest()
+    print(f"wrote {dst} ({size} bytes, sha256 {digest[:16]})")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
